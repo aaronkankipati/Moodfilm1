@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moodfilm — Find Your Film</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── RESET & BASE ─────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  :root {
+    --gold: #C9A84C;
+    --gold-l: #E8C87A;
+    --gold-d: #9A7A2E;
+    --ink: #0D0D0F;
+    --ink2: #141418;
+    --ink3: #1C1C22;
+    --ink4: #242430;
+    --paper: #EDE8DC;
+    --paper2: #D6CFC0;
+    --muted: #7A7570;
+  }
+
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Film grain */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    background-size: 180px;
+    pointer-events: none;
+    z-index: 999;
+    mix-blend-mode: overlay;
+    opacity: .4;
+  }
+
+  /* ── TYPOGRAPHY ──────────────────────────────────────────────────────── */
+  .display { font-family: 'Cormorant Garamond', Georgia, serif; }
+  .shimmer {
+    background: linear-gradient(90deg,#C9A84C,#E8C87A 40%,#C9A84C 60%,#9A7A2E);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* ── LAYOUT ──────────────────────────────────────────────────────────── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px;
+    background: linear-gradient(to bottom, rgba(13,13,15,.95) 0%, transparent 100%);
+  }
+
+  .logo { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .logo-text { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 600; }
+
+  main { padding-top: 72px; min-height: 100vh; }
+
+  .container { max-width: 680px; margin: 0 auto; padding: 0 20px; }
+  .container-wide { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+
+  /* ── SCREENS ─────────────────────────────────────────────────────────── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ── CARDS ───────────────────────────────────────────────────────────── */
+  .card {
+    background: linear-gradient(135deg, var(--ink3) 0%, var(--ink2) 100%);
+    border: 1px solid rgba(201,168,76,.12);
+    border-radius: 16px;
+    transition: border-color .3s, transform .3s, box-shadow .3s;
+  }
+  .card:hover {
+    border-color: rgba(201,168,76,.35);
+    transform: translateY(-3px);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 30px rgba(201,168,76,.07);
+  }
+
+  /* ── TEXTAREA ────────────────────────────────────────────────────────── */
+  textarea {
+    background: rgba(201,168,76,.04);
+    border: 1px solid rgba(201,168,76,.2);
+    border-radius: 16px;
+    color: var(--paper);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 18px 20px;
+    resize: none;
+    transition: border-color .3s, box-shadow .3s, background .3s;
+    width: 100%;
+  }
+  textarea::placeholder { color: #3D3932; }
+  textarea:focus {
+    outline: none;
+    border-color: rgba(201,168,76,.55);
+    box-shadow: 0 0 0 3px rgba(201,168,76,.07);
+    background: rgba(201,168,76,.06);
+  }
+
+  /* ── MOOD CHIPS ──────────────────────────────────────────────────────── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: rgba(201,168,76,.05);
+    border: 1px solid rgba(201,168,76,.18);
+    border-radius: 50px;
+    color: var(--paper2);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 7px 16px;
+    transition: all .2s;
+    user-select: none;
+  }
+  .chip:hover { border-color: rgba(201,168,76,.45); color: var(--gold-l); }
+  .chip.active {
+    background: rgba(201,168,76,.15);
+    border-color: var(--gold);
+    color: var(--gold-l);
+    box-shadow: 0 0 12px rgba(201,168,76,.18);
+  }
+
+  /* ── INTENT CARDS ────────────────────────────────────────────────────── */
+  .intent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .intent-card {
+    background: var(--ink3);
+    border: 1px solid rgba(201,168,76,.12);
+    border-radius: 16px;
+    cursor: pointer;
+    padding: 22px 18px;
+    text-align: left;
+    transition: all .25s;
+  }
+  .intent-card:hover { border-color: rgba(201,168,76,.35); background: rgba(201,168,76,.04); }
+  .intent-card.active {
+    border-color: var(--gold);
+    background: rgba(201,168,76,.08);
+    box-shadow: 0 0 20px rgba(201,168,76,.1);
+  }
+  .intent-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+  .intent-title { font-size: 16px; font-weight: 500; color: var(--paper); margin-bottom: 4px; }
+  .intent-desc { font-size: 13px; color: var(--muted); }
+
+  /* ── BUTTONS ─────────────────────────────────────────────────────────── */
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-d) 100%);
+    border: none;
+    border-radius: 16px;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 16px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .25s, box-shadow .25s;
+    width: 100%;
+  }
+  .btn-gold::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--gold-l) 0%, var(--gold) 100%);
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(201,168,76,.4); }
+  .btn-gold:hover::before { opacity: 1; }
+  .btn-gold:disabled { opacity: .3; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+  .btn-gold span { position: relative; z-index: 1; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(201,168,76,.2);
+    border-radius: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 20px;
+    transition: all .2s;
+  }
+  .btn-ghost:hover { border-color: rgba(201,168,76,.4); color: var(--paper); }
+  .btn-back {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px;
+    transition: color .2s; padding: 0;
+  }
+  .btn-back:hover { color: var(--paper); }
+
+  /* ── LOADING ─────────────────────────────────────────────────────────── */
+  .loading-wrap {
+    min-height: 80vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 32px;
+  }
+  .spinner-ring {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 2px solid rgba(201,168,76,.15);
+    border-top-color: var(--gold);
+    animation: spin 1.4s linear infinite;
+  }
+  .loading-text { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--paper2); font-style: italic; }
+  .progress-track { width: 260px; height: 1px; background: var(--ink4); border-radius: 1px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--gold-d), var(--gold), var(--gold-l)); width: 0; transition: width .4s ease; }
+
+  /* ── RESULTS ─────────────────────────────────────────────────────────── */
+  .results-header { text-align: center; padding: 40px 20px 32px; }
+  .mood-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 12px; }
+  .mood-tag {
+    border: 1px solid rgba(201,168,76,.2);
+    border-radius: 50px;
+    color: var(--gold-l);
+    font-size: 12px;
+    padding: 4px 12px;
+    text-transform: capitalize;
+  }
+
+  /* Spotlight (top pick) */
+  .spotlight {
+    background: linear-gradient(135deg, var(--ink3), var(--ink2));
+    border: 1px solid rgba(201,168,76,.3);
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  @media (min-width: 640px) { .spotlight { flex-direction: row; } }
+  .spotlight-img {
+    width: 100%; height: 220px; object-fit: cover; display: block;
+    flex-shrink: 0;
+  }
+  @media (min-width: 640px) { .spotlight-img { width: 260px; height: auto; } }
+  .spotlight-img-ph {
+    width: 100%; min-height: 220px;
+    background: var(--ink4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 56px;
+    flex-shrink: 0;
+  }
+  @media (min-width: 640px) { .spotlight-img-ph { width: 260px; } }
+  .spotlight-body { padding: 28px 24px; flex: 1; }
+
+  /* Movie grid */
+  .movie-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  @media (min-width: 640px) { .movie-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 900px) { .movie-grid { grid-template-columns: repeat(5, 1fr); } }
+
+  .movie-card { border-radius: 14px; overflow: hidden; }
+  .movie-poster-wrap { position: relative; aspect-ratio: 2/3; overflow: hidden; background: var(--ink4); }
+  .movie-poster { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s; }
+  .movie-card:hover .movie-poster { transform: scale(1.04); }
+  .poster-ph { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .poster-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(13,13,15,.92) 0%, rgba(13,13,15,.2) 50%, transparent 100%); }
+  .poster-genre-badge {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(13,13,15,.7);
+    border-radius: 6px;
+    font-size: 11px;
+    padding: 3px 8px;
+    color: var(--paper2);
+  }
+  .poster-bottom { position: absolute; bottom: 10px; left: 10px; right: 10px; }
+  .movie-info { padding: 12px; }
+  .match-bar-track { height: 2px; background: var(--ink4); border-radius: 2px; overflow: hidden; margin: 6px 0; }
+  .match-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold-d), var(--gold)); border-radius: 2px; }
+
+  /* ── MISC ────────────────────────────────────────────────────────────── */
+  .divider-gold {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,168,76,.4), transparent);
+    margin: 0 auto;
+    width: 80%;
+  }
+  .label-line {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted);
+  }
+  .label-line::before, .label-line::after { content: ''; flex: 1; height: 1px; background: rgba(201,168,76,.15); }
+
+  .error-box {
+    background: rgba(220,50,50,.08);
+    border: 1px solid rgba(220,50,50,.2);
+    border-radius: 12px;
+    color: #ff9999;
+    font-size: 14px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  .top-badge {
+    background: linear-gradient(135deg, var(--gold), var(--gold-d));
+    color: var(--ink);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+
+  .char-count { text-align: right; font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ── ANIMATIONS ──────────────────────────────────────────────────────── */
+  @keyframes shimmer { to { background-position: 200% center; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp .55s ease both; }
+  .d1 { animation-delay: .08s; }
+  .d2 { animation-delay: .16s; }
+  .d3 { animation-delay: .24s; }
+  .d4 { animation-delay: .32s; }
+  .d5 { animation-delay: .40s; }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--ink2); }
+  ::-webkit-scrollbar-thumb { background: var(--gold-d); border-radius: 3px; }
+
+  footer { text-align: center; padding: 32px 20px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--ink4); margin-top: 40px; }
+  footer a { color: var(--gold); text-decoration: none; transition: color .2s; }
+  footer a:hover { color: var(--gold-l); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <span>🎬</span>
+    <span class="logo-text shimmer">Moodfilm</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SCREEN 1: MOOD INPUT
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-input" class="screen active">
+  <div class="container" style="padding-top: 56px; padding-bottom: 60px;">
+
+    <!-- Hero -->
+    <div class="fade-up" style="text-align:center; margin-bottom: 44px;">
+      <div style="display:inline-flex; align-items:center; gap:8px; font-size:11px; text-transform:uppercase; letter-spacing:.14em; color:var(--gold); border:1px solid rgba(201,168,76,.2); border-radius:50px; padding:6px 18px; margin-bottom:20px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--gold);animation:spin 2s linear infinite;"></span>
+        AI Film Curator
+      </div>
+      <h1 class="display" style="font-size:clamp(40px,8vw,62px); font-weight:300; line-height:1.1; margin-bottom:16px;">
+        How are you <em class="shimmer" style="font-style:normal;">feeling</em> tonight?
+      </h1>
+      <p style="color:var(--muted); font-size:15px; max-width:420px; margin:0 auto; line-height:1.6;">
+        Tell us your mood and we'll find the perfect film to match this moment.
+      </p>
+    </div>
+
+    <!-- Textarea -->
+    <div class="fade-up d1" style="margin-bottom: 10px;">
+      <textarea id="mood-text" rows="3" placeholder="I'm feeling a bit overwhelmed after a long week, just want to decompress with something good..." maxlength="300" oninput="onMoodInput()"></textarea>
+      <div class="char-count"><span id="char-count">0</span>/300</div>
+    </div>
+
+    <!-- Chips -->
+    <div class="fade-up d2" style="margin-bottom: 36px;">
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin-bottom:10px;">Or pick a feeling</p>
+      <div class="chips" id="chips-container"></div>
+    </div>
+
+    <!-- CTA -->
+    <div class="fade-up d3">
+      <button class="btn-gold" id="btn-step1" disabled onclick="goToIntent()">
+        <span>Find My Film →</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SCREEN 2: INTENT
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-intent" class="screen">
+  <div class="container" style="padding-top: 40px; padding-bottom: 60px;">
+
+    <button class="btn-back" onclick="goTo('input')" style="margin-bottom: 32px;">← Back</button>
+
+    <div class="fade-up" style="text-align:center; margin-bottom: 32px;">
+      <h2 class="display" style="font-size:38px; font-weight:300; margin-bottom:10px;">What are you looking for?</h2>
+      <p style="color:var(--muted); font-size:14px;">This helps us find exactly the right film.</p>
+    </div>
+
+    <div class="intent-grid fade-up d1" id="intent-grid"></div>
+
+    <div id="error-box" class="error-box" style="margin-top:16px;"></div>
+
+    <div style="margin-top: 20px;" class="fade-up d2">
+      <button class="btn-gold" id="btn-curate" disabled onclick="getRecommendations()">
+        <span>✦ Curate My Films</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SCREEN 3: LOADING
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-loading" class="screen">
+  <div class="loading-wrap">
+    <div class="spinner-ring"></div>
+    <div>
+      <p class="loading-text" id="loading-text">Reading your emotional state...</p>
+    </div>
+    <div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <p style="text-align:center; font-size:12px; color:var(--muted); margin-top:8px;" id="progress-pct">0%</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     SCREEN 4: RESULTS
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="screen-results" class="screen">
+  <div id="results-content"></div>
+  <div style="text-align:center; padding: 20px 0 40px;">
+    <button class="btn-ghost" onclick="goTo('input')">↺ Try a different mood</button>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://anthropic.com" target="_blank">Anthropic Claude</a> &amp; <a href="https://themoviedb.org" target="_blank">TMDb</a>
+</footer>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────────────
+// 👇 REPLACE THIS with your Cloudflare Worker URL after deploying the worker
+const WORKER_URL = "https://moodfilm-api.kankipati-aaron.workers.dev/";
+
+// ── DATA ────────────────────────────────────────────────────────────────────
+const CHIPS = [
+  "Anxious","Happy","Sad","Tired","Excited","Lonely",
+  "Bored","Stressed","Nostalgic","Hopeful","Angry",
+  "Heartbroken","Inspired","Cozy","Restless"
+];
+
+const INTENTS = [
+  { value:"Feel better",    icon:"🌤️", desc:"Lift my spirits"         },
+  { value:"Escape",         icon:"🚀", desc:"Take me somewhere else"   },
+  { value:"Relate",         icon:"🤝", desc:"I want to feel understood" },
+  { value:"Get motivated",  icon:"⚡", desc:"Fire me up"               },
+];
+
+const GENRE_ICONS = {
+  Drama:"🎭", Comedy:"😄", Romance:"💕", Thriller:"😰",
+  Action:"⚡", Horror:"👻", Animation:"✨", Fantasy:"🔮",
+  "Sci-Fi":"🚀", Documentary:"📽️"
+};
+
+const LOADING_STEPS = [
+  "Reading your emotional state...",
+  "Analysing mood patterns...",
+  "Searching the film library...",
+  "Curating your personal picks...",
+  "Writing your explanations...",
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let selectedChips = [];
+let selectedIntent = "";
+let loadingTimer = null;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  // Build chip buttons
+  const cc = document.getElementById("chips-container");
+  CHIPS.forEach(chip => {
+    const btn = document.createElement("button");
+    btn.className = "chip";
+    btn.textContent = chip;
+    btn.onclick = () => toggleChip(chip, btn);
+    cc.appendChild(btn);
+  });
+
+  // Build intent cards
+  const ig = document.getElementById("intent-grid");
+  INTENTS.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "intent-card";
+    div.innerHTML = `<span class="intent-icon">${item.icon}</span><div class="intent-title">${item.value}</div><div class="intent-desc">${item.desc}</div>`;
+    div.onclick = () => selectIntent(item.value, div);
+    ig.appendChild(div);
+  });
+}
+
+// ── MOOD INPUT ────────────────────────────────────────────────────────────────
+function onMoodInput() {
+  const val = document.getElementById("mood-text").value;
+  document.getElementById("char-count").textContent = val.length;
+  updateStep1Btn();
+}
+
+function toggleChip(chip, el) {
+  if (selectedChips.includes(chip)) {
+    selectedChips = selectedChips.filter(c => c !== chip);
+    el.classList.remove("active");
+  } else {
+    selectedChips.push(chip);
+    el.classList.add("active");
+  }
+  updateStep1Btn();
+}
+
+function updateStep1Btn() {
+  const mood = document.getElementById("mood-text").value.trim();
+  document.getElementById("btn-step1").disabled = !mood && selectedChips.length === 0;
+}
+
+function goToIntent() {
+  goTo("intent");
+  selectedIntent = "";
+  document.querySelectorAll(".intent-card").forEach(c => c.classList.remove("active"));
+  document.getElementById("btn-curate").disabled = true;
+  hideError();
+}
+
+function selectIntent(val, el) {
+  selectedIntent = val;
+  document.querySelectorAll(".intent-card").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("btn-curate").disabled = false;
+  hideError();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function goTo(screen) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-" + screen).classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ── API CALL ──────────────────────────────────────────────────────────────────
+async function getRecommendations() {
+  if (!selectedIntent) return;
+  hideError();
+
+  // Check worker URL is configured
+  if (WORKER_URL === "https://YOUR-WORKER-NAME.YOUR-USERNAME.workers.dev") {
+    showError("⚙ Worker URL not set. Please edit index.html and replace WORKER_URL with your Cloudflare Worker URL.");
+    return;
+  }
+
+  goTo("loading");
+  startLoading();
+
+  try {
+    const mood = document.getElementById("mood-text").value.trim();
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood, moodChips: selectedChips, intent: selectedIntent }),
+    });
+
+    const data = await res.json();
+    stopLoading();
+
+    if (!res.ok) throw new Error(data.error || "Request failed");
+
+    renderResults(data.recommendations, data.moodAnalysis);
+    goTo("results");
+  } catch (err) {
+    stopLoading();
+    goTo("intent");
+    showError("⚠ " + (err.message || "Something went wrong. Please try again."));
+  }
+}
+
+// ── LOADING ANIMATION ─────────────────────────────────────────────────────────
+let progressVal = 0;
+let progressInterval;
+let stepInterval;
+
+function startLoading() {
+  progressVal = 0;
+  let stepIdx = 0;
+  document.getElementById("loading-text").textContent = LOADING_STEPS[0];
+  document.getElementById("progress-fill").style.width = "0%";
+  document.getElementById("progress-pct").textContent = "0%";
+
+  progressInterval = setInterval(() => {
+    if (progressVal < 92) {
+      progressVal += 0.4;
+      document.getElementById("progress-fill").style.width = progressVal + "%";
+      document.getElementById("progress-pct").textContent = Math.round(progressVal) + "%";
+    }
+  }, 80);
+
+  stepInterval = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, LOADING_STEPS.length - 1);
+    document.getElementById("loading-text").textContent = LOADING_STEPS[stepIdx];
+  }, 2500);
+}
+
+function stopLoading() {
+  clearInterval(progressInterval);
+  clearInterval(stepInterval);
+  document.getElementById("progress-fill").style.width = "100%";
+}
+
+// ── RENDER RESULTS ────────────────────────────────────────────────────────────
+function renderResults(recs, mood) {
+  const top = recs.find(r => r.isTopPick);
+  const others = recs.filter(r => !r.isTopPick);
+
+  let html = `<div class="results-header">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);border:1px solid rgba(201,168,76,.2);border-radius:50px;padding:6px 18px;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;">
+      <span>✦</span> Your Curated Films
+    </div>`;
+
+  if (mood?.moodSummary) {
+    html += `<p class="display" style="font-size:22px;font-weight:300;font-style:italic;color:var(--paper2);max-width:500px;margin:0 auto;">"${escHtml(mood.moodSummary)}"</p>`;
+  }
+
+  if (mood?.emotions?.length) {
+    html += `<div class="mood-tags" style="margin-top:14px;">
+      ${mood.emotions.slice(0,5).map(e => `<span class="mood-tag">${escHtml(e)}</span>`).join("")}
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Spotlight
+  if (top) {
+    const imgHtml = top.backdrop || top.poster
+      ? `<img src="${escHtml(top.backdrop || top.poster)}" class="spotlight-img" alt="${escHtml(top.title)}" onerror="this.style.display='none'">`
+      : `<div class="spotlight-img-ph">${GENRE_ICONS[top.genre] || "🎬"}</div>`;
+
+    html += `<div class="container-wide" style="margin-bottom:36px;">
+      <div class="label-line" style="margin-bottom:16px;">Tonight's Spotlight</div>
+      <div class="spotlight">
+        ${imgHtml}
+        <div class="spotlight-body">
+          <span class="top-badge">★ Top Pick</span>
+          <h2 class="display" style="font-size:clamp(24px,4vw,34px);font-weight:500;margin-bottom:6px;">${escHtml(top.title)}</h2>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            ${top.releaseYear ? `<span style="font-size:13px;color:var(--muted);">${top.releaseYear}</span>` : ""}
+            ${top.rating ? `<span style="font-size:13px;color:var(--gold);">★ ${top.rating}</span>` : ""}
+            <span style="font-size:13px;color:var(--muted);">${escHtml(top.genre || "")}</span>
+          </div>
+          ${top.tagline ? `<p class="display" style="font-size:16px;color:var(--gold-l);font-style:italic;margin-bottom:14px;">"${escHtml(top.tagline)}"</p>` : ""}
+          <p style="font-size:14px;color:var(--paper2);line-height:1.7;margin-bottom:20px;">${escHtml(top.explanation)}</p>
+          <div style="display:flex;align-items:center;gap:10px;">
+            ${top.tmdbUrl ? `<a href="${escHtml(top.tmdbUrl)}" target="_blank" rel="noopener" style="display:inline-block;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--ink);border-radius:10px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none;">View on TMDb →</a>` : ""}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Others grid
+  if (others.length) {
+    html += `<div class="container-wide">
+      <div class="label-line" style="margin-bottom:16px;">More For Your Mood</div>
+      <div class="movie-grid">`;
+
+    others.forEach((rec, i) => {
+      const pct = Math.round((rec.matchScore || .75) * 100);
+      const imgContent = rec.poster
+        ? `<img src="${escHtml(rec.poster)}" class="movie-poster" alt="${escHtml(rec.title)}" onerror="this.parentElement.innerHTML='<div class=\\'poster-ph\\'><span style=\\'font-size:40px\\'>${GENRE_ICONS[rec.genre] || "🎬"}</span></div>'">`
+        : `<div class="poster-ph"><span style="font-size:40px">${GENRE_ICONS[rec.genre] || "🎬"}</span></div>`;
+
+      html += `<div class="card movie-card" style="animation:fadeUp .5s ${i*80}ms both;">
+        <div class="movie-poster-wrap">
+          ${imgContent}
+          <div class="poster-overlay"></div>
+          <span class="poster-genre-badge">${GENRE_ICONS[rec.genre] || ""} ${escHtml(rec.genre || "")}</span>
+          <div class="poster-bottom">
+            <p style="font-size:14px;font-weight:500;line-height:1.3;">${escHtml(rec.title)}</p>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              ${rec.releaseYear ? `<span style="font-size:11px;color:var(--muted);">${rec.releaseYear}</span>` : ""}
+              ${rec.rating ? `<span style="font-size:11px;color:var(--gold);">★ ${rec.rating}</span>` : ""}
+            </div>
+          </div>
+        </div>
+        <div class="movie-info">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);">
+            <span>Mood match</span><span style="color:var(--gold);">${pct}%</span>
+          </div>
+          <div class="match-bar-track"><div class="match-bar-fill" style="width:${pct}%"></div></div>
+          ${rec.tagline ? `<p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px;">"${escHtml(rec.tagline)}"</p>` : ""}
+          <p style="font-size:12px;color:var(--paper2);line-height:1.6;">${escHtml(rec.explanation)}</p>
+          ${rec.tmdbUrl ? `<a href="${escHtml(rec.tmdbUrl)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;font-size:12px;color:var(--gold);text-decoration:none;border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:5px 12px;transition:border-color .2s;">More Info →</a>` : ""}
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  document.getElementById("results-content").innerHTML = html;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return "";
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function showError(msg) {
+  const box = document.getElementById("error-box");
+  box.textContent = msg;
+  box.classList.add("show");
+}
+
+function hideError() {
+  document.getElementById("error-box").classList.remove("show");
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
