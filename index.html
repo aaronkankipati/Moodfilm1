@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Moodfilm — Find Your Film</title>
+<title>Moodfilm — Find Your Film by Mood</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230D0D0F'/><rect x='4' y='4' width='24' height='24' rx='3' fill='none' stroke='%23C9A84C' stroke-width='1.5'/><circle cx='16' cy='16' r='6' fill='%23C9A84C'/><circle cx='16' cy='16' r='2.5' fill='%230D0D0F'/><circle cx='8' cy='8' r='2' fill='%23C9A84C'/><circle cx='24' cy='8' r='2' fill='%23C9A84C'/><circle cx='8' cy='24' r='2' fill='%23C9A84C'/><circle cx='24' cy='24' r='2' fill='%23C9A84C'/></svg>" type="image/svg+xml">
 <!-- B-11: OG & Social Meta Tags -->
 <meta name="description" content="Tell us how you're feeling and AI finds the perfect film for your exact mood. Free, no sign-up.">
 <meta property="og:type" content="website">
@@ -198,7 +199,7 @@ footer a:hover{color:var(--gold-l)}
 </div>
 
 <!-- SCREEN 2: INTENT -->
-<div id="screen-intent" class="screen">
+<div id="screen-intent" class="screen" style="display:none">
   <div class="container" style="padding-top:40px;padding-bottom:60px">
     <button class="btn-back" onclick="goTo('input')" style="margin-bottom:32px">← Back</button>
     <div class="fade-up" style="text-align:center;margin-bottom:32px">
@@ -216,7 +217,7 @@ footer a:hover{color:var(--gold-l)}
 </div>
 
 <!-- SCREEN 3: LOADING (I-02) -->
-<div id="screen-loading" class="screen">
+<div id="screen-loading" class="screen" style="display:none">
   <div class="loading-wrap">
     <div class="projector">
       <div class="proj-outer">
@@ -247,7 +248,7 @@ footer a:hover{color:var(--gold-l)}
 </div>
 
 <!-- SCREEN 4: RESULTS -->
-<div id="screen-results" class="screen">
+<div id="screen-results" class="screen" style="display:none">
   <div id="results-content"></div>
   <div style="text-align:center;padding:20px 0 40px">
     <button class="btn-ghost" onclick="goTo('input')">↺ Try a different mood</button>
@@ -257,7 +258,7 @@ footer a:hover{color:var(--gold-l)}
 </main>
 
 <footer>
-  Powered by <a href="https://anthropic.com" target="_blank">Anthropic Claude</a> &amp; <a href="https://themoviedb.org" target="_blank">TMDb</a>
+  Powered by <a href="https://anthropic.com" target="_blank" rel="noopener noreferrer">Anthropic Claude</a> &amp; <a href="https://themoviedb.org" target="_blank" rel="noopener noreferrer">TMDb</a>
 </footer>
 
 <script>
@@ -343,6 +344,7 @@ function selectLang(v,el) {
   selectedLang=v;
   document.querySelectorAll(".lang-chip").forEach(c=>c.classList.remove("active"));
   el.classList.add("active");
+  document.documentElement.lang = v==="hi"?"hi":v==="te"?"te":"en";
 }
 function updateBtn() {
   const m = document.getElementById("mood-text").value.trim();
@@ -359,8 +361,17 @@ function selectIntent(v,el) {
   el.classList.add("active"); document.getElementById("btn-curate").disabled=false; hideErr();
 }
 function goTo(s) {
-  document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
-  document.getElementById("screen-"+s).classList.add("active");
+  document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("active");x.style.display="";});
+  const el=document.getElementById("screen-"+s);
+  el.style.display=""; el.classList.add("active");
+  window.scrollTo({top:0,behavior:"smooth"});
+  history.pushState({screen:s}, "");
+}
+function goToSilent(s) {
+  if(!document.getElementById("screen-"+s)) return;
+  document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("active");x.style.display="";});
+  const el=document.getElementById("screen-"+s);
+  el.style.display=""; el.classList.add("active");
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -529,10 +540,32 @@ function esc(s) {
   if(s==null) return "";
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
-function showErr(m){const b=document.getElementById("error-box");b.textContent=m;b.classList.add("show")}
+function showErr(m){
+  const b=document.getElementById("error-box");
+  b.classList.add("show");
+  const msg=document.createElement("span");
+  msg.textContent=m;
+  const btn=document.createElement("button");
+  btn.textContent="Try again";
+  btn.style.cssText="margin-left:10px;background:none;border:1px solid rgba(255,153,153,.4);border-radius:6px;color:#ff9999;cursor:pointer;font-family:inherit;font-size:12px;padding:3px 10px;transition:border-color .2s";
+  btn.onmouseover=()=>btn.style.borderColor="rgba(255,153,153,.8)";
+  btn.onmouseout=()=>btn.style.borderColor="rgba(255,153,153,.4)";
+  btn.onclick=()=>{ if(selectedIntent) getRecommendations(); };
+  b.innerHTML=""; b.appendChild(msg); b.appendChild(btn);
+}
 function hideErr(){document.getElementById("error-box").classList.remove("show")}
 
+// B-09: Handle browser back button
+window.addEventListener("popstate", function(e) {
+  const s = e.state?.screen || "input";
+  if(s === "loading") return; // back during load → go to intent
+  if(abortCtrl) { abortCtrl.abort(); abortCtrl=null; stopLoading(); }
+  goToSilent(s==="loading" ? "intent" : s);
+});
+
 init();
+// Set initial history state so first back press is handled
+history.replaceState({screen:"input"}, "");
 </script>
 </body>
 </html>
