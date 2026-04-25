@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,9 +48,10 @@ textarea:focus{outline:none;border-color:rgba(201,168,76,.55);box-shadow:0 0 0 3
 .chip.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--gold-l);box-shadow:0 0 12px rgba(201,168,76,.18)}
 .chip:active,.lang-chip:active{transform:scale(.96)}
 /* I-01: Language chips */
-.lang-chip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:50px;color:var(--paper2);cursor:pointer;font-size:13px;padding:7px 16px;transition:all .2s;user-select:none}
-.lang-chip:hover{border-color:rgba(255,255,255,.25);color:var(--paper)}
-.lang-chip.active{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4);color:var(--paper)}
+.lang-chip{background:rgba(201,168,76,.05);border:1px solid rgba(201,168,76,.18);border-radius:50px;color:var(--paper2);cursor:pointer;font-size:13px;padding:7px 16px;transition:all .2s;user-select:none;display:inline-flex;align-items:center;gap:7px}
+.lang-chip:hover{border-color:rgba(201,168,76,.45);color:var(--gold-l)}
+.lang-chip.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--gold-l);box-shadow:0 0 12px rgba(201,168,76,.18)}
+.lang-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block}
 .intent-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .intent-card{background:var(--ink3);border:1px solid rgba(201,168,76,.12);border-radius:16px;cursor:pointer;padding:22px 18px;text-align:left;transition:all .25s}
 .intent-card:hover{border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.04)}
@@ -261,10 +261,15 @@ footer a:hover{color:var(--gold-l)}
 </footer>
 
 <script>
-const WORKER_URL = "https://moodfilm-api.kankipati-aaron.workers.dev/";
+const WORKER_URL = "https://moodfilm-api.kankipati-aaron.workers.dev";
 
 const CHIPS = ["Anxious","Happy","Sad","Tired","Excited","Lonely","Bored","Stressed","Nostalgic","Hopeful","Angry","Heartbroken","Inspired","Cozy","Restless"];
-const LANGS = [{value:"any",label:"🌐 Any"},{value:"en",label:"🇬🇧 English"},{value:"hi",label:"🇮🇳 Hindi"},{value:"te",label:"🎬 Telugu"}];
+const LANGS = [
+  {value:"any", dot:"#C9A84C", label:"Any"},
+  {value:"en",  dot:"#4A90D9", label:"English"},
+  {value:"hi",  dot:"#FF8C2A", label:"Hindi"},
+  {value:"te",  dot:"#00B89F", label:"Telugu"},
+];
 const LANG_EXPLAIN = {any:"English",en:"English",hi:"Hindi",te:"Telugu"};
 const INTENTS = [
   {value:"Feel better",icon:"🌤️",desc:"Lift my spirits"},
@@ -275,10 +280,14 @@ const INTENTS = [
 const GENRE_ICONS = {Drama:"🎭",Comedy:"😄",Romance:"💕",Thriller:"😰",Action:"⚡",Horror:"👻",Animation:"✨",Fantasy:"🔮","Sci-Fi":"🚀",Documentary:"📽️"};
 const STAGES = [
   {icon:"🧠",text:"Reading your emotional state..."},
-  {icon:"🎭",text:"Analysing your mood patterns..."},
-  {icon:"🎬",text:"Searching the film library..."},
+  {icon:"🎭",text:"Mapping your mood patterns..."},
+  {icon:"🔍",text:"Searching 900k+ films..."},
+  {icon:"🌍",text:"Filtering by language preference..."},
+  {icon:"⭐",text:"Scoring the best candidates..."},
+  {icon:"🎬",text:"Enriching with ratings data..."},
   {icon:"✨",text:"Curating your personal picks..."},
   {icon:"📝",text:"Writing your explanations..."},
+  {icon:"🎞️",text:"Almost there — polishing your list..."},
 ];
 
 let selectedChips=[], selectedLang="any", selectedIntent="";
@@ -302,7 +311,8 @@ function init() {
   LANGS.forEach(l => {
     const b = document.createElement("button");
     b.className="lang-chip"+(l.value==="any"?" active":"");
-    b.textContent=l.label; b.onclick=()=>selectLang(l.value,b); lc.appendChild(b);
+    b.innerHTML=`<span class="lang-dot" style="background:${l.dot}"></span>${l.label}`;
+    b.onclick=()=>selectLang(l.value,b); lc.appendChild(b);
   });
 
   // Intent cards
@@ -404,12 +414,13 @@ function startLoading() {
   }, 400);
 
   stepInterval = setInterval(()=>{
-    idx = Math.min(idx+1, STAGES.length-1); setStage(idx);
-  }, 9000);
+    idx = idx >= STAGES.length-1 ? 2 : idx+1;
+    setStage(idx);
+  }, 7000);
 
   noteTimeout = setTimeout(()=>{
     document.getElementById("loading-note").classList.add("show");
-  }, 30000);
+  }, 22000);
 }
 
 function setStage(i) {
