@@ -271,7 +271,6 @@ const LANGS = [
   {value:"hi",  dot:"#FF8C2A", label:"Hindi"},
   {value:"te",  dot:"#00B89F", label:"Telugu"},
 ];
-const LANG_EXPLAIN = {any:"English",en:"English",hi:"Hindi",te:"Telugu"};
 const INTENTS = [
   {value:"Feel better",icon:"🌤️",desc:"Lift my spirits"},
   {value:"Escape",icon:"🚀",desc:"Take me somewhere else"},
@@ -391,7 +390,7 @@ async function getRecommendations() {
       method:"POST", signal:abortCtrl.signal,
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({mood, moodChips:selectedChips, intent:selectedIntent,
-        filmLanguage:selectedLang, explanationLang:LANG_EXPLAIN[selectedLang]||"English"}),
+        filmLanguage:selectedLang}),
     });
     clearTimeout(tid);
     const data = await res.json();
