@@ -1,6 +1,6 @@
-// Moodfilm Worker — Sprint 2 (subrequest-safe)
-// Redesigned to stay under Cloudflare free tier 50 subrequest limit (~22 max)
-// Strategy: 2 discover calls/genre + 2 global theme searches. OMDb removed (saved 120 calls).
+// Moodfilm Worker — Sprint 4
+// New: OTT availability via TMDb watch providers (6 extra subrequests = 28 max, under 50 limit)
+// Fixes: B-18 "change intent only" data support (no worker change needed — frontend only)
 // Secrets (exact case): ANTHROPIC_API_KEY  TMDB_API_KEY
 
 const CORS = {
@@ -17,6 +17,27 @@ const GENRE_IDS = {
 
 const LANG_CODES = { any: null, en: "en", hi: "hi", te: "te" };
 
+// Friendly platform names + dot colours for frontend rendering
+const PLATFORM_COLOURS = {
+  "Netflix":             "#E50914",
+  "Amazon Prime Video":  "#00A8E0",
+  "Disney+ Hotstar":     "#1F80E0",
+  "Disney+":             "#1F80E0",
+  "Apple TV Plus":       "#CCCCCC",
+  "Apple TV+":           "#CCCCCC",
+  "Zee5":                "#7B2FBE",
+  "SonyLIV":             "#FF4500",
+  "Mubi":                "#1A1A1A",
+  "Paramount Plus":      "#0064FF",
+  "HBO Max":             "#8A2BE2",
+  "Max":                 "#8A2BE2",
+  "Hulu":                "#1CE783",
+  "Peacock":             "#FDB827",
+  "Hotstar":             "#1F80E0",
+  "Jio Cinema":          "#0064FF",
+  "YouTube Premium":     "#FF0000",
+};
+
 const ok  = d => new Response(JSON.stringify(d), { status: 200, headers: CORS });
 const err = (m, s = 500) => new Response(JSON.stringify({ error: m }), { status: s, headers: CORS });
 
@@ -24,7 +45,6 @@ function parseJson(text) {
   return JSON.parse(text.trim().replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim());
 }
 
-// Pre-score without language gate (gate applied when building shortlist)
 function preScore(movie, themes) {
   const text = `${movie.title || ""} ${movie.overview || ""}`.toLowerCase();
   const kwHits = themes.filter(t => text.includes(t.toLowerCase())).length;
@@ -35,63 +55,42 @@ function preScore(movie, themes) {
   return kwScore + qualScore + recScore;
 }
 
-// ── DISCOVERY: 2 strategies per genre (counts as 2 subrequests each) ─────────
 async function discoverGenre(genreId, tmdbKey, langCode, sortBy, page, minVotes) {
   const lang = langCode ? `&with_original_language=${langCode}` : "";
   const url = `https://api.themoviedb.org/3/discover/movie?api_key=${tmdbKey}&with_genres=${genreId}&sort_by=${sortBy}&vote_count.gte=${minVotes}&page=${page}&include_adult=false&language=en-US${lang}`;
-  try {
-    const r = await fetch(url);
-    const d = await r.json();
-    return d.results || [];
-  } catch { return []; }
+  try { const r = await fetch(url); const d = await r.json(); return d.results || []; }
+  catch { return []; }
 }
 
-// ── GLOBAL THEME SEARCH: 2 calls total across all genres ─────────────────────
 async function themeSearch(query, tmdbKey, langCode) {
   const lang = langCode ? `&with_original_language=${langCode}` : "";
   const url = `https://api.themoviedb.org/3/search/movie?api_key=${tmdbKey}&query=${encodeURIComponent(query)}&include_adult=false&language=en-US${lang}`;
   try {
-    const r = await fetch(url);
-    const d = await r.json();
+    const r = await fetch(url); const d = await r.json();
     let results = d.results || [];
-    // Post-filter by language for search endpoint (doesn't support with_original_language)
     if (langCode) results = results.filter(m => m.original_language === langCode);
     return results.filter(m => m.poster_path);
   } catch { return []; }
 }
 
-// ── LANGUAGE WIDENING: 1 call per genre only when pool is critically small ────
 async function widenPool(genreId, tmdbKey, langCode) {
   const lang = langCode ? `&with_original_language=${langCode}` : "";
   const url = `https://api.themoviedb.org/3/discover/movie?api_key=${tmdbKey}&with_genres=${genreId}&sort_by=popularity.desc&page=1&include_adult=false&language=en-US${lang}`;
-  try {
-    const r = await fetch(url);
-    const d = await r.json();
-    return (d.results || []).filter(m => m.poster_path);
-  } catch { return []; }
+  try { const r = await fetch(url); const d = await r.json(); return (d.results || []).filter(m => m.poster_path); }
+  catch { return []; }
 }
 
-// Build per-genre pool from all discovered movies
 function buildPool(genreId, allDiscovered, globalThemeMovies, langCode) {
-  const seen = new Set();
-  const pool = [];
-
+  const seen = new Set(); const pool = [];
   const add = movies => {
     for (const m of movies) {
       if (!seen.has(m.id) && m.poster_path) {
-        if (!langCode || m.original_language === langCode) {
-          seen.add(m.id); pool.push(m);
-        }
+        if (!langCode || m.original_language === langCode) { seen.add(m.id); pool.push(m); }
       }
     }
   };
-
   add(allDiscovered);
-
-  // Add theme movies that match this genre
-  const themeMatches = globalThemeMovies.filter(m => m.genre_ids?.includes(genreId));
-  add(themeMatches);
-
+  add(globalThemeMovies.filter(m => m.genre_ids?.includes(genreId)));
   return pool;
 }
 
@@ -104,6 +103,34 @@ function buildContext(genreShortlists) {
   }).join("\n\n");
 }
 
+// ── NEW: Fetch OTT availability from TMDb watch providers ──────────────────────
+// Uses existing TMDB_API_KEY — 1 subrequest per film = 6 extra = 28 total max
+async function fetchOTT(tmdbId, tmdbKey, country) {
+  if (!tmdbId) return [];
+  try {
+    const r = await fetch(
+      `https://api.themoviedb.org/3/movie/${tmdbId}/watch/providers?api_key=${tmdbKey}`
+    );
+    const d = await r.json();
+    // Try user's country first, fallback to IN (India), then US
+    const regions = [country, "IN", "US"].filter(Boolean);
+    for (const region of regions) {
+      const regionData = d.results?.[region];
+      if (regionData) {
+        // flatrate = subscription streaming (Netflix, Prime etc.) — what we want
+        const flatrate = regionData.flatrate || [];
+        const platforms = flatrate.slice(0, 4).map(p => ({
+          name:   p.provider_name,
+          colour: PLATFORM_COLOURS[p.provider_name] || "#555555",
+          link:   regionData.link || null,
+        }));
+        if (platforms.length > 0) return platforms;
+      }
+    }
+    return [];
+  } catch { return []; }
+}
+
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
@@ -114,7 +141,11 @@ export default {
     try { body = await request.json(); }
     catch { return err("Invalid JSON", 400); }
 
-    const { mood, moodChips, intent, filmLanguage = "any", explanationLang = "English" } = body;
+    const {
+      mood, moodChips, intent,
+      filmLanguage = "any",
+      country = "IN",           // passed from frontend via Intl API
+    } = body;
 
     if (!env.ANTHROPIC_API_KEY || !env.TMDB_API_KEY)
       return err("Worker secrets not configured. Add ANTHROPIC_API_KEY and TMDB_API_KEY in Cloudflare dashboard.");
@@ -129,7 +160,7 @@ export default {
     const chipCtx = moodChips?.length ? `Mood chips: ${moodChips.join(", ")}` : "No chips.";
 
     try {
-      // ── STEP 1: Claude — psychological mood analysis (1 subrequest) ─────────
+      // ── STEP 1: Claude mood analysis (1 subrequest) ────────────────────────
       const moodRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -173,10 +204,7 @@ avoidDark:true for intense sadness/grief.`
         }),
       });
 
-      if (!moodRes.ok) {
-        const e = await moodRes.json();
-        throw new Error(`Claude mood: ${e.error?.message || moodRes.status}`);
-      }
+      if (!moodRes.ok) { const e = await moodRes.json(); throw new Error(`Claude mood: ${e.error?.message || moodRes.status}`); }
 
       const moodData = await moodRes.json();
       let MA;
@@ -201,39 +229,33 @@ avoidDark:true for intense sadness/grief.`
       }
       const themes = MA.searchThemes || ["emotional journey", "compelling story"];
 
-      // ── STEP 2: Discover movies — 2 calls per genre + 2 global theme searches
-      // All fired in parallel. Total: 12 discover + 2 theme = 14 subrequests ──
+      // ── STEP 2: Discover movies — 12 + 2 theme = 14 subrequests ──────────
       const genreIds = genres.map(g => GENRE_IDS[g] || 18);
-
       const discoverCalls = genres.flatMap((g, i) => {
-        const id  = genreIds[i];
-        const pA  = Math.floor(Math.random() * 8)  + 1;
-        const pB  = Math.floor(Math.random() * 15) + 1;
+        const id = genreIds[i];
+        const pA = Math.floor(Math.random() * 8)  + 1;
+        const pB = Math.floor(Math.random() * 15) + 1;
         return [
-          discoverGenre(id, env.TMDB_API_KEY, langCode, "popularity.desc",   pA, 50),
-          discoverGenre(id, env.TMDB_API_KEY, langCode, "vote_average.desc",  pB, 30),
+          discoverGenre(id, env.TMDB_API_KEY, langCode, "popularity.desc",  pA, 50),
+          discoverGenre(id, env.TMDB_API_KEY, langCode, "vote_average.desc", pB, 30),
         ];
-      }); // 12 calls
+      });
 
       const themeQuery1 = themes.slice(0, 3).join(" ");
       const themeQuery2 = themes.slice(3, 6).join(" ");
 
-      const [
-        ...discoverResults
-      ] = await Promise.all([
-        ...discoverCalls,                                          // 12
-        themeSearch(themeQuery1, env.TMDB_API_KEY, langCode),     // 1
-        themeSearch(themeQuery2, env.TMDB_API_KEY, langCode),     // 1
-      ]); // Total so far: 1 (Claude) + 14 = 15 subrequests
+      const [...discoverResults] = await Promise.all([
+        ...discoverCalls,
+        themeSearch(themeQuery1, env.TMDB_API_KEY, langCode),
+        themeSearch(themeQuery2, env.TMDB_API_KEY, langCode),
+      ]);
 
-      // Split discover results back to per-genre pairs
-      const themeMovies1 = discoverResults[12];
-      const themeMovies2 = discoverResults[13];
-      const globalThemeMovies = [...(themeMovies1 || []), ...(themeMovies2 || [])];
+      const themeMovies1 = discoverResults[12] || [];
+      const themeMovies2 = discoverResults[13] || [];
+      const globalThemeMovies = [...themeMovies1, ...themeMovies2];
 
       // ── STEP 3: Build per-genre pools ─────────────────────────────────────
       const masterPool = new Map();
-
       const genrePoolsRaw = genres.map((genre, i) => {
         const id   = genreIds[i];
         const resA = discoverResults[i * 2]     || [];
@@ -241,52 +263,36 @@ avoidDark:true for intense sadness/grief.`
         const pool = buildPool(id, [...resA, ...resB], globalThemeMovies, langCode);
         return { genre, id, pool };
       });
+      for (const { pool } of genrePoolsRaw) for (const m of pool) masterPool.set(m.id, m);
 
-      // Track all movies in master pool for ID-based poster resolution
-      for (const { pool } of genrePoolsRaw) {
-        for (const m of pool) masterPool.set(m.id, m);
-      }
-
-      // ── STEP 4: Language widening — 1 extra call per starved genre (max 6) ─
-      // Only fires for language-filtered sessions with thin pools
+      // ── STEP 4: Language widening (up to 6 subrequests) ───────────────────
       const widenCalls = [];
       for (const gp of genrePoolsRaw) {
         if (langCode && gp.pool.length < 5) {
-          widenCalls.push(
-            widenPool(gp.id, env.TMDB_API_KEY, langCode).then(extra => ({ genre: gp.genre, extra }))
-          );
+          widenCalls.push(widenPool(gp.id, env.TMDB_API_KEY, langCode).then(extra => ({ genre: gp.genre, extra })));
         }
       }
-
       if (widenCalls.length > 0) {
-        const widenResults = await Promise.all(widenCalls); // up to 6 subrequests
+        const widenResults = await Promise.all(widenCalls);
         for (const { genre, extra } of widenResults) {
           const gp = genrePoolsRaw.find(g => g.genre === genre);
           if (gp) {
             const seen = new Set(gp.pool.map(m => m.id));
-            for (const m of extra) {
-              if (!seen.has(m.id)) { seen.add(m.id); gp.pool.push(m); masterPool.set(m.id, m); }
-            }
+            for (const m of extra) { if (!seen.has(m.id)) { seen.add(m.id); gp.pool.push(m); masterPool.set(m.id, m); } }
           }
         }
       }
-      // Subrequest count so far: 15 + up to 6 = max 21
 
-      // ── STEP 5: Pre-score and shortlist top 10 per genre ──────────────────
+      // ── STEP 5: Pre-score → top 10 per genre ──────────────────────────────
       const shortlists = genrePoolsRaw.map(({ genre, pool }) => {
-        const scored = pool
-          .map(m => ({ m, s: preScore(m, themes) }))
-          .sort((a, b) => b.s - a.s);
+        const scored = pool.map(m => ({ m, s: preScore(m, themes) })).sort((a, b) => b.s - a.s);
         return { genre, candidates: scored.slice(0, 10).map(x => x.m) };
       });
 
-      // ── STEP 6: Claude — pick best film per genre (1 subrequest) ──────────
+      // ── STEP 6: Claude picks (1 subrequest) ───────────────────────────────
       const ctx = buildContext(shortlists);
       const langRule = langCode
         ? `\nCRITICAL: Only select films where [${langCode}] appears in the language field. Do NOT pick English films if a language filter is active. If pool is thin, pick the best available.\n`
-        : "";
-      const langOutput = explanationLang !== "English"
-        ? `\nWrite all "explanation" and "tagline" values in ${explanationLang}.\n`
         : "";
 
       const pickRes = await fetch("https://api.anthropic.com/v1/messages", {
@@ -307,7 +313,7 @@ User emotional profile:
 - Mood: ${MA.moodSummary}
 - Dominant: ${MA.dominantEmotion} (${MA.intensity} intensity) | Valence: ${MA.valence} | Arousal: ${MA.arousal}
 - Intent: ${intent || "Feel better"}
-${langRule}${langOutput}
+${langRule}
 Candidates by genre (ID | title | year | language | TMDb rating | overview):
 ${ctx}
 
@@ -334,12 +340,8 @@ Rules:
           }],
         }),
       });
-      // Total subrequests: max 21 + 1 = 22 ✓
 
-      if (!pickRes.ok) {
-        const e = await pickRes.json();
-        throw new Error(`Claude picks: ${e.error?.message || pickRes.status}`);
-      }
+      if (!pickRes.ok) { const e = await pickRes.json(); throw new Error(`Claude picks: ${e.error?.message || pickRes.status}`); }
 
       const pickData = await pickRes.json();
       let picks;
@@ -354,14 +356,11 @@ Rules:
         }));
       }
 
-      // ── STEP 7: ID-based poster resolution — zero extra subrequests ────────
+      // ── STEP 7: ID-based poster resolution (0 extra subrequests) ──────────
       const validIds = new Set(masterPool.keys());
-
-      const results = picks.map(pick => {
+      const resolvedIds = picks.map(pick => {
         let id = typeof pick.tmdbId === "number" ? pick.tmdbId : parseInt(pick.tmdbId);
         if (!id || isNaN(id)) id = null;
-
-        // If Claude returned an ID not in pool, find by title in pool (no extra API call)
         if (id && !validIds.has(id)) {
           const titleLower = pick.title?.toLowerCase().trim();
           for (const [pid, m] of masterPool) {
@@ -369,9 +368,19 @@ Rules:
           }
           if (!validIds.has(id)) id = null;
         }
+        return id;
+      });
 
+      // ── STEP 8: OTT availability — 6 parallel subrequests (one per film) ──
+      // Total subrequests: 1 + 14 + up to 6 widening + 1 + 6 OTT = 28 max ✓
+      const ottResults = await Promise.all(
+        resolvedIds.map(id => fetchOTT(id, env.TMDB_API_KEY, country))
+      );
+
+      // ── STEP 9: Assemble final results ─────────────────────────────────────
+      const results = picks.map((pick, i) => {
+        const id    = resolvedIds[i];
         const movie = id ? masterPool.get(id) : null;
-
         return {
           genre:       pick.genre,
           title:       pick.title,
@@ -383,7 +392,8 @@ Rules:
           poster:      movie?.poster_path   ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`   : null,
           backdrop:    movie?.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
           rating:      movie?.vote_average  ? parseFloat(movie.vote_average.toFixed(1)) : null,
-          tmdbUrl:     id                  ? `https://www.themoviedb.org/movie/${id}`                : null,
+          tmdbUrl:     id ? `https://www.themoviedb.org/movie/${id}` : null,
+          streaming:   ottResults[i] || [],   // ← NEW: OTT platforms array
         };
       });
 

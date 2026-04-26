@@ -123,6 +123,31 @@ textarea:focus{outline:none;border-color:rgba(201,168,76,.55);box-shadow:0 0 0 3
 .movie-info{padding:12px}
 .match-bar-track{height:2px;background:var(--ink4);border-radius:2px;overflow:hidden;margin:6px 0}
 .match-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold-d),var(--gold));border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.ott-row{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 10px}
+.ott-badge{display:inline-flex;align-items:center;gap:5px;background:var(--ink4);border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:4px 9px;font-size:11px;color:var(--paper2);text-decoration:none;transition:all .2s;white-space:nowrap}
+.ott-badge:hover{border-color:rgba(255,255,255,.2);color:var(--paper);transform:translateY(-1px)}
+.ott-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ott-none{font-size:11px;color:var(--muted);font-style:italic;margin:6px 0 10px;display:block}
+.btn-share-card{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid rgba(201,168,76,.18);background:none;cursor:pointer;color:var(--muted);font-size:14px;flex-shrink:0;transition:all .2s}
+.btn-share-card:hover{border-color:rgba(201,168,76,.5);color:var(--gold);background:rgba(201,168,76,.06)}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink3);border:1px solid rgba(201,168,76,.3);border-radius:50px;padding:10px 22px;font-size:13px;color:var(--gold-l);opacity:0;transition:all .35s cubic-bezier(.4,0,.2,1);pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.share-all-btn{display:inline-flex;align-items:center;gap:7px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.22);border-radius:50px;padding:8px 18px;color:var(--gold-l);font-size:13px;cursor:pointer;transition:all .2s;margin-top:10px}
+.share-all-btn:hover{background:rgba(201,168,76,.14);border-color:rgba(201,168,76,.4)}
+.btn-intent-only{display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.22);border-radius:12px;color:var(--gold-l);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;padding:10px 20px;transition:all .2s}
+.btn-intent-only:hover{background:rgba(201,168,76,.12);border-color:rgba(201,168,76,.4)}
+/* ── Did You Know card ── */
+.trivia-wrap{width:100%;max-width:480px}
+.trivia-card{background:linear-gradient(135deg,var(--ink3),var(--ink2));border:1px solid rgba(201,168,76,.18);border-radius:20px;padding:26px 26px 20px;position:relative;overflow:hidden;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;transition:opacity .35s,transform .35s}
+.trivia-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,.5),transparent)}
+.trivia-dyk{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.trivia-dyk::before{content:'';display:block;width:16px;height:1px;background:var(--gold)}
+.trivia-text{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--paper);line-height:1.5;font-style:italic;flex:1}
+.trivia-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.trivia-source{font-size:11px;color:var(--muted)}
+.trivia-dots{display:flex;gap:4px}
+.trivia-dot{width:5px;height:5px;border-radius:50%;background:var(--ink4);cursor:pointer;transition:all .3s}
+.trivia-dot.active{background:var(--gold);width:12px;border-radius:3px}
 .label-line{display:flex;align-items:center;gap:10px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
 .label-line::before,.label-line::after{content:'';flex:1;height:1px;background:rgba(201,168,76,.15)}
 .error-box{background:rgba(220,50,50,.08);border:1px solid rgba(220,50,50,.2);border-radius:12px;color:#ff9999;font-size:14px;padding:14px 18px;margin-top:16px;display:none}
@@ -147,6 +172,7 @@ footer a:hover{color:var(--gold-l)}
 </head>
 <body>
 
+<div class="toast" id="toast"></div>
 <header>
   <div class="logo">
     <span>🎬</span>
@@ -216,7 +242,7 @@ footer a:hover{color:var(--gold-l)}
   </div>
 </div>
 
-<!-- SCREEN 3: LOADING (I-02) -->
+<!-- SCREEN 3: LOADING with Did You Know cards -->
 <div id="screen-loading" class="screen" style="display:none">
   <div class="loading-wrap">
     <div class="projector">
@@ -237,6 +263,20 @@ footer a:hover{color:var(--gold-l)}
       <p class="stage-text" id="stage-text">Reading your emotional state...</p>
     </div>
 
+    <!-- Did You Know trivia card -->
+    <div class="trivia-wrap">
+      <div class="trivia-card" id="trivia-card">
+        <div>
+          <div class="trivia-dyk">Did you know?</div>
+          <div class="trivia-text" id="trivia-text">Loading a great fact...</div>
+        </div>
+        <div class="trivia-footer">
+          <span class="trivia-source" id="trivia-source"></span>
+          <div class="trivia-dots" id="trivia-dots"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="progress-pct" id="progress-pct">0%</div>
@@ -250,8 +290,9 @@ footer a:hover{color:var(--gold-l)}
 <!-- SCREEN 4: RESULTS -->
 <div id="screen-results" class="screen" style="display:none">
   <div id="results-content"></div>
-  <div style="text-align:center;padding:20px 0 40px">
+  <div style="text-align:center;padding:20px 0 40px;display:flex;flex-direction:column;align-items:center;gap:10px">
     <button class="btn-ghost" onclick="goTo('input')">↺ Try a different mood</button>
+    <button class="btn-intent-only" onclick="changeIntentOnly()"><span>↩</span> Change intent only</button>
   </div>
 </div>
 
@@ -264,6 +305,17 @@ footer a:hover{color:var(--gold-l)}
 <script>
 const WORKER_URL = "https://moodfilm-api.kankipati-aaron.workers.dev";
 
+// Detect country from browser timezone/locale for OTT region
+const COUNTRY = (() => {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    if (tz.includes("Kolkata") || tz.includes("Calcutta")) return "IN";
+    const locale = navigator.language || "";
+    const tag = locale.split("-")[1]?.toUpperCase();
+    return tag || "IN";
+  } catch { return "IN"; }
+})();
+
 const CHIPS = ["Anxious","Happy","Sad","Tired","Excited","Lonely","Bored","Stressed","Nostalgic","Hopeful","Angry","Heartbroken","Inspired","Cozy","Restless"];
 const LANGS = [
   {value:"any", dot:"#C9A84C", label:"Any"},
@@ -272,12 +324,13 @@ const LANGS = [
   {value:"te",  dot:"#00B89F", label:"Telugu"},
 ];
 const INTENTS = [
-  {value:"Feel better",icon:"🌤️",desc:"Lift my spirits"},
-  {value:"Escape",icon:"🚀",desc:"Take me somewhere else"},
-  {value:"Relate",icon:"🤝",desc:"I want to feel understood"},
-  {value:"Get motivated",icon:"⚡",desc:"Fire me up"},
+  {value:"Feel better",   icon:"🌤️", desc:"Lift my spirits"},
+  {value:"Escape",        icon:"🚀", desc:"Take me somewhere else"},
+  {value:"Relate",        icon:"🤝", desc:"I want to feel understood"},
+  {value:"Get motivated", icon:"⚡", desc:"Fire me up"},
 ];
 const GENRE_ICONS = {Drama:"🎭",Comedy:"😄",Romance:"💕",Thriller:"😰",Action:"⚡",Horror:"👻",Animation:"✨",Fantasy:"🔮","Sci-Fi":"🚀",Documentary:"📽️"};
+
 const STAGES = [
   {icon:"🧠",text:"Reading your emotional state..."},
   {icon:"🎭",text:"Mapping your mood patterns..."},
@@ -290,187 +343,287 @@ const STAGES = [
   {icon:"🎞️",text:"Almost there — polishing your list..."},
 ];
 
-let selectedChips=[], selectedLang="any", selectedIntent="";
-let abortCtrl=null, progInterval, stepInterval, noteTimeout, progVal=0;
+// ── Did You Know facts ────────────────────────────────────────────────────────
+const FACTS = [
+  {text:'"Parasite" is the first non-English film to win the Academy Award for Best Picture.',source:"🏆 Academy Awards, 2020"},
+  {text:'The Wilhelm Scream — recorded in 1951 — has appeared in over 400 films and TV shows.',source:"🔊 Sound design history"},
+  {text:'The hallway fight in "Inception" took 3 weeks to shoot using a custom rotating set.',source:"🎬 Christopher Nolan, 2010"},
+  {text:'"Schindler's List" was shot almost entirely in black and white — the red coat was intentional.',source:"🎭 Steven Spielberg, 1993"},
+  {text:'The original "Star Wars" (1977) had an $11M budget. A single VFX shot costs that today.',source:"⭐ George Lucas, 1977"},
+  {text:'"Interstellar's" black hole visual was so accurate it led to a published paper in Nature Physics.',source:"🌌 Kip Thorne, 2015"},
+  {text:'"Mad Max: Fury Road" spent 80 days in the Namibian desert. 90% of effects were practical, not CGI.',source:"🚗 George Miller, 2015"},
+  {text:'The "Lord of the Rings" trilogy was filmed back-to-back across 15 months — a first for a major trilogy.',source:"💍 Peter Jackson, 2001"},
+  {text:'"The Godfather" (1972) was the first film to gross over $100 million at the domestic box office.',source:"🎩 Francis Ford Coppola, 1972"},
+  {text:'Cary Grant, Charlie Chaplin, and Marilyn Monroe never won a competitive Academy Award.',source:"🏆 Oscar history"},
+  {text:'"2001: A Space Odyssey" was released 14 months before the actual Moon landing in 1969.',source:"🚀 Stanley Kubrick, 1968"},
+  {text:'Psycho (1960) was the first American film to show a toilet flushing — considered scandalous at the time.',source:"🚿 Alfred Hitchcock, 1960"},
+  {text:'"Spirited Away" is the only non-English animated film to win the Oscar for Best Animated Feature.',source:"✨ Hayao Miyazaki, 2003"},
+  {text:'The term "blockbuster" originated from WWII — a bomb so powerful it destroyed an entire block.',source:"💣 Film history"},
+  {text:'"Titanic" (1997) was the first film to reach $1 billion at the box office, then $2 billion.',source:"🚢 James Cameron, 1997"},
+  {text:'Pixar's first computer-animated short, "Luxo Jr." (1986), introduced the iconic lamp mascot.',source:"💡 Pixar, 1986"},
+  {text:'The "Jaws" shark malfunctioned so often that Spielberg showed it less — accidentally making it scarier.',source:"🦈 Steven Spielberg, 1975"},
+  {text:'"Groundhog Day" (1993) never explains why the time loop happens. Director Harold Ramis intended it that way.',source:"🔄 Harold Ramis, 1993"},
+  {text:'The dinosaur roar in "Jurassic Park" was made by combining a baby elephant, tiger, alligator, and penguin.',source:"🦖 Steven Spielberg, 1993"},
+  {text:'"Citizen Kane" (1941) invented or popularised many techniques still used in modern filmmaking.',source:"🎬 Orson Welles, 1941"},
+];
 
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let selectedChips = [], selectedLang = "any", selectedIntent = "";
+let abortCtrl = null, progInterval, stepInterval, noteTimeout, progVal = 0;
+let triviaInterval, triviaIdx = 0;
+let lastRecommendations = null; // for share all + change intent
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
 function init() {
-  // B-04/I-04: Dynamic time greeting
   const h = new Date().getHours();
   document.getElementById("time-word").textContent =
-    h>=5&&h<12 ? "today" : h>=12&&h<17 ? "this afternoon" : h>=17&&h<22 ? "tonight" : "right now";
+    h>=5&&h<12?"today":h>=12&&h<17?"this afternoon":h>=17&&h<22?"tonight":"right now";
 
-  // Mood chips
   const cc = document.getElementById("chips-container");
-  CHIPS.forEach(c => {
+  CHIPS.forEach(chip => {
     const b = document.createElement("button");
-    b.className="chip"; b.textContent=c; b.onclick=()=>toggleChip(c,b); cc.appendChild(b);
+    b.className = "chip"; b.textContent = chip; b.onclick = () => toggleChip(chip, b);
+    cc.appendChild(b);
   });
 
-  // Language chips (I-01)
   const lc = document.getElementById("lang-container");
   LANGS.forEach(l => {
     const b = document.createElement("button");
-    b.className="lang-chip"+(l.value==="any"?" active":"");
-    b.innerHTML=`<span class="lang-dot" style="background:${l.dot}"></span>${l.label}`;
-    b.onclick=()=>selectLang(l.value,b); lc.appendChild(b);
+    b.className = "lang-chip" + (l.value === "any" ? " active" : "");
+    b.innerHTML = `<span class="lang-dot" style="background:${l.dot}"></span>${l.label}`;
+    b.onclick = () => selectLang(l.value, b);
+    lc.appendChild(b);
   });
 
-  // Intent cards
   const ig = document.getElementById("intent-grid");
   INTENTS.forEach(item => {
-    const d = document.createElement("div");
-    d.className="intent-card";
-    d.innerHTML=`<span class="intent-icon">${item.icon}</span><div class="intent-title">${item.value}</div><div class="intent-desc">${item.desc}</div>`;
-    d.onclick=()=>selectIntent(item.value,d); ig.appendChild(d);
+    const d = document.createElement("div"); d.className = "intent-card";
+    d.innerHTML = `<span class="intent-icon">${item.icon}</span><div class="intent-title">${item.value}</div><div class="intent-desc">${item.desc}</div>`;
+    d.onclick = () => selectIntent(item.value, d);
+    ig.appendChild(d);
   });
 
-  // Film strip frames
   const fs = document.getElementById("film-strip");
-  for(let i=0;i<24;i++){const f=document.createElement("div");f.className="film-frame";fs.appendChild(f);}
+  for (let i = 0; i < 24; i++) { const f = document.createElement("div"); f.className = "film-frame"; fs.appendChild(f); }
+
+  // Build trivia dots
+  const dotsEl = document.getElementById("trivia-dots");
+  FACTS.forEach((_, i) => {
+    const d = document.createElement("div");
+    d.className = "trivia-dot" + (i === 0 ? " active" : "");
+    d.onclick = () => setFact(i);
+    dotsEl.appendChild(d);
+  });
+
+  window.addEventListener("popstate", e => {
+    const s = e.state?.screen || "input";
+    if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; stopLoading(); }
+    goToSilent(s === "loading" ? "intent" : s);
+  });
+  history.replaceState({ screen: "input" }, "");
 }
 
+// ── MOOD INPUT ────────────────────────────────────────────────────────────────
 function onMoodInput() {
   const v = document.getElementById("mood-text").value;
   document.getElementById("char-count").textContent = v.length;
   updateBtn();
 }
-function toggleChip(c,el) {
-  selectedChips.includes(c) ? (selectedChips=selectedChips.filter(x=>x!==c), el.classList.remove("active"))
-                             : (selectedChips.push(c), el.classList.add("active"));
+function toggleChip(c, el) {
+  selectedChips.includes(c)
+    ? (selectedChips = selectedChips.filter(x => x !== c), el.classList.remove("active"))
+    : (selectedChips.push(c), el.classList.add("active"));
   updateBtn();
 }
-function selectLang(v,el) {
-  selectedLang=v;
-  document.querySelectorAll(".lang-chip").forEach(c=>c.classList.remove("active"));
+function selectLang(v, el) {
+  selectedLang = v;
+  document.querySelectorAll(".lang-chip").forEach(c => c.classList.remove("active"));
   el.classList.add("active");
-  document.documentElement.lang = v==="hi"?"hi":v==="te"?"te":"en";
+  document.documentElement.lang = v === "hi" ? "hi" : v === "te" ? "te" : "en";
 }
 function updateBtn() {
   const m = document.getElementById("mood-text").value.trim();
   document.getElementById("btn-step1").disabled = !m && !selectedChips.length;
 }
 function goToIntent() {
-  goTo("intent"); selectedIntent="";
-  document.querySelectorAll(".intent-card").forEach(c=>c.classList.remove("active"));
-  document.getElementById("btn-curate").disabled=true; hideErr();
+  goTo("intent"); selectedIntent = "";
+  document.querySelectorAll(".intent-card").forEach(c => c.classList.remove("active"));
+  document.getElementById("btn-curate").disabled = true; hideErr();
 }
-function selectIntent(v,el) {
-  selectedIntent=v;
-  document.querySelectorAll(".intent-card").forEach(c=>c.classList.remove("active"));
-  el.classList.add("active"); document.getElementById("btn-curate").disabled=false; hideErr();
-}
-function goTo(s) {
-  document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("active");x.style.display="";});
-  const el=document.getElementById("screen-"+s);
-  el.style.display=""; el.classList.add("active");
-  window.scrollTo({top:0,behavior:"smooth"});
-  history.pushState({screen:s}, "");
-}
-function goToSilent(s) {
-  if(!document.getElementById("screen-"+s)) return;
-  document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("active");x.style.display="";});
-  const el=document.getElementById("screen-"+s);
-  el.style.display=""; el.classList.add("active");
-  window.scrollTo({top:0,behavior:"smooth"});
+function selectIntent(v, el) {
+  selectedIntent = v;
+  document.querySelectorAll(".intent-card").forEach(c => c.classList.remove("active"));
+  el.classList.add("active"); document.getElementById("btn-curate").disabled = false; hideErr();
 }
 
-// B-07: AbortController + 90s timeout
-async function getRecommendations() {
-  if(!selectedIntent) return;
+// ── B-18: Change intent only (keeps mood + chips) ────────────────────────────
+function changeIntentOnly() {
+  selectedIntent = "";
+  document.querySelectorAll(".intent-card").forEach(c => c.classList.remove("active"));
+  document.getElementById("btn-curate").disabled = true;
   hideErr();
-  if(WORKER_URL.includes("YOUR-WORKER-NAME")){
-    showErr("⚙ Worker URL not set. Open index.html and replace WORKER_URL with your Cloudflare Worker URL."); return;
+  goTo("intent");
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function goTo(s) {
+  document.querySelectorAll(".screen").forEach(x => { x.classList.remove("active"); x.style.display = ""; });
+  const el = document.getElementById("screen-" + s);
+  el.style.display = ""; el.classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  history.pushState({ screen: s }, "");
+}
+function goToSilent(s) {
+  if (!document.getElementById("screen-" + s)) return;
+  document.querySelectorAll(".screen").forEach(x => { x.classList.remove("active"); x.style.display = ""; });
+  const el = document.getElementById("screen-" + s);
+  el.style.display = ""; el.classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ── API CALL ──────────────────────────────────────────────────────────────────
+async function getRecommendations() {
+  if (!selectedIntent) return;
+  hideErr();
+  if (WORKER_URL.includes("YOUR-WORKER-NAME")) {
+    showErr("⚙ Worker URL not set."); return;
   }
   goTo("loading"); startLoading();
   abortCtrl = new AbortController();
-  const tid = setTimeout(()=>abortCtrl.abort(), 90000);
+  const tid = setTimeout(() => abortCtrl.abort(), 90000);
   try {
     const mood = document.getElementById("mood-text").value.trim();
     const res = await fetch(WORKER_URL, {
-      method:"POST", signal:abortCtrl.signal,
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({mood, moodChips:selectedChips, intent:selectedIntent,
-        filmLanguage:selectedLang}),
+      method: "POST", signal: abortCtrl.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood, moodChips: selectedChips, intent: selectedIntent, filmLanguage: selectedLang, country: COUNTRY }),
     });
     clearTimeout(tid);
     const data = await res.json();
     stopLoading();
-    if(!res.ok) throw new Error(data.error||"Request failed");
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    lastRecommendations = data.recommendations;
     renderResults(data.recommendations, data.moodAnalysis);
     goTo("results");
-  } catch(e) {
+  } catch (e) {
     clearTimeout(tid); stopLoading(); goTo("intent");
-    if(e.name==="AbortError")
-      showErr("⏱ Timed out after 90 seconds. Please try again in a moment.");
-    else
-      showErr("⚠ "+(e.message||"Something went wrong. Please try again."));
+    if (e.name === "AbortError") showErr("⏱ Timed out. Please try again in a moment.");
+    else showErr("⚠ " + (e.message || "Something went wrong. Please try again."));
   }
 }
 
-// I-02: Cinematic loading
+// ── LOADING ───────────────────────────────────────────────────────────────────
 function startLoading() {
-  progVal=0; let idx=0;
-  setStage(0);
-  document.getElementById("progress-fill").style.width="0%";
-  document.getElementById("progress-pct").textContent="0%";
+  progVal = 0; let idx = 0;
+  setStage(0); setFact(0);
+  document.getElementById("progress-fill").style.width = "0%";
+  document.getElementById("progress-pct").textContent = "0%";
   document.getElementById("loading-note").classList.remove("show");
 
-  // Natural easing — slows as it approaches 90
-  progInterval = setInterval(()=>{
+  progInterval = setInterval(() => {
     const gap = 90 - progVal;
-    progVal = Math.min(progVal + Math.max(0.08, gap*0.014), 90);
-    document.getElementById("progress-fill").style.width = progVal+"%";
-    document.getElementById("progress-pct").textContent = Math.round(progVal)+"%";
+    progVal = Math.min(progVal + Math.max(0.08, gap * 0.014), 90);
+    document.getElementById("progress-fill").style.width = progVal + "%";
+    document.getElementById("progress-pct").textContent = Math.round(progVal) + "%";
   }, 400);
 
-  stepInterval = setInterval(()=>{
-    idx = idx >= STAGES.length-1 ? 2 : idx+1;
-    setStage(idx);
+  stepInterval = setInterval(() => {
+    idx = idx >= STAGES.length - 1 ? 2 : idx + 1; setStage(idx);
   }, 7000);
 
-  noteTimeout = setTimeout(()=>{
-    document.getElementById("loading-note").classList.add("show");
-  }, 22000);
+  triviaIdx = Math.floor(Math.random() * FACTS.length);
+  setFact(triviaIdx);
+  triviaInterval = setInterval(() => {
+    triviaIdx = (triviaIdx + 1) % FACTS.length; setFact(triviaIdx);
+  }, 10000);
+
+  noteTimeout = setTimeout(() => document.getElementById("loading-note").classList.add("show"), 22000);
 }
 
 function setStage(i) {
-  const icon=document.getElementById("stage-icon"), text=document.getElementById("stage-text");
-  // Clone to re-trigger CSS animation
-  const ni=icon.cloneNode(true), nt=text.cloneNode(true);
-  ni.textContent=STAGES[i].icon; nt.textContent=STAGES[i].text;
+  const icon = document.getElementById("stage-icon"), text = document.getElementById("stage-text");
+  const ni = icon.cloneNode(true), nt = text.cloneNode(true);
+  ni.textContent = STAGES[i].icon; nt.textContent = STAGES[i].text;
   icon.replaceWith(ni); text.replaceWith(nt);
 }
 
+function setFact(i) {
+  const card = document.getElementById("trivia-card");
+  if (!card) return;
+  card.style.opacity = "0"; card.style.transform = "translateY(8px)";
+  setTimeout(() => {
+    const t = document.getElementById("trivia-text");
+    const s = document.getElementById("trivia-source");
+    if (t) t.textContent = FACTS[i].text;
+    if (s) s.textContent = FACTS[i].source;
+    document.querySelectorAll(".trivia-dot").forEach((d, j) => d.classList.toggle("active", j === i));
+    card.style.transition = "opacity .4s ease, transform .4s ease";
+    card.style.opacity = "1"; card.style.transform = "translateY(0)";
+  }, 280);
+}
+
 function stopLoading() {
-  clearInterval(progInterval); clearInterval(stepInterval); clearTimeout(noteTimeout);
-  document.getElementById("progress-fill").style.width="100%";
-  document.getElementById("progress-pct").textContent="100%";
+  clearInterval(progInterval); clearInterval(stepInterval);
+  clearInterval(triviaInterval); clearTimeout(noteTimeout);
+  document.getElementById("progress-fill").style.width = "100%";
+  document.getElementById("progress-pct").textContent = "100%";
+}
+
+// ── SHARE ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function shareFilm(title) {
+  const url = window.location.href;
+  const text = `Moodfilm recommended "${title}" for me 🎬 Describe your mood and get your picks → ${url}`;
+  if (navigator.share) { navigator.share({ title: "Moodfilm Pick", text }).catch(() => {}); }
+  else { navigator.clipboard.writeText(text).then(() => showToast(`✓ "${title}" pick copied!`)).catch(() => showToast("✓ Copied!")); }
+}
+
+function shareAll() {
+  if (!lastRecommendations) return;
+  const titles = lastRecommendations.map(r => r.title).join(" · ");
+  const url = window.location.href;
+  const text = `My Moodfilm picks 🎬 ${titles}
+
+Describe your mood and get yours → ${url}`;
+  if (navigator.share) { navigator.share({ title: "My Moodfilm Picks", text }).catch(() => {}); }
+  else { navigator.clipboard.writeText(text).then(() => showToast("✓ All picks copied!")).catch(() => showToast("✓ Copied!")); }
+}
+
+// ── RENDER RESULTS ────────────────────────────────────────────────────────────
+function renderOTT(streaming) {
+  if (!streaming || !streaming.length) return `<span class="ott-none">Not on major streaming platforms</span>`;
+  return `<div class="ott-row">${streaming.map(p =>
+    `<a class="ott-badge" href="${esc(p.link || "#")}" target="_blank" rel="noopener noreferrer">
+      <span class="ott-dot" style="background:${esc(p.colour)}"></span>${esc(p.name)}
+    </a>`
+  ).join("")}</div>`;
 }
 
 function renderResults(recs, mood) {
-  const top = recs.find(r=>r.isTopPick);
-  const others = recs.filter(r=>!r.isTopPick);
-  const tw = document.getElementById("time-word")?.textContent||"tonight";
+  const top = recs.find(r => r.isTopPick);
+  const others = recs.filter(r => !r.isTopPick);
+  const tw = document.getElementById("time-word")?.textContent || "tonight";
 
   let html = `<div class="results-header">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);border:1px solid rgba(201,168,76,.2);border-radius:50px;padding:6px 18px;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px">
-      <span>✦</span> Your Curated Films
-    </div>`;
-  if(mood?.moodSummary)
-    html+=`<p class="display" style="font-size:22px;font-weight:300;font-style:italic;color:var(--paper2);max-width:520px;margin:0 auto">"${esc(mood.moodSummary)}"</p>`;
-  if(mood?.emotions?.length)
-    html+=`<div class="mood-tags" style="margin-top:14px">${mood.emotions.slice(0,5).map(e=>`<span class="mood-tag">${esc(e)}</span>`).join("")}</div>`;
-  html+=`</div>`;
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);border:1px solid rgba(201,168,76,.2);border-radius:50px;padding:6px 18px;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px"><span>✦</span> Your Curated Films</div>`;
+  if (mood?.moodSummary)
+    html += `<p class="display" style="font-size:22px;font-weight:300;font-style:italic;color:var(--paper2);max-width:520px;margin:0 auto">"${esc(mood.moodSummary)}"</p>`;
+  if (mood?.emotions?.length)
+    html += `<div class="mood-tags" style="margin-top:14px">${mood.emotions.slice(0,5).map(e=>`<span class="mood-tag">${esc(e)}</span>`).join("")}</div>`;
+  html += `<div style="margin-top:14px"><button class="share-all-btn" onclick="shareAll()"><span>⬆</span> Share all my picks</button></div>`;
+  html += `</div>`;
 
-  if(top) {
-    const imgHtml = top.backdrop||top.poster
+  if (top) {
+    const imgHtml = top.backdrop || top.poster
       ? `<img src="${esc(top.backdrop||top.poster)}" class="spotlight-img" alt="${esc(top.title)}" loading="lazy" onerror="this.outerHTML='<div class=spotlight-img-ph>${GENRE_ICONS[top.genre]||"🎬"}</div>'">`
       : `<div class="spotlight-img-ph">${GENRE_ICONS[top.genre]||"🎬"}</div>`;
-
-    const spotlightLabel = tw==="today"?"Your top pick today":tw==="this afternoon"?"Your afternoon pick":tw==="right now"?"Your pick for right now":"Tonight's spotlight";
-
-    html+=`<div class="container-wide" style="margin-bottom:36px">
-      <div class="label-line" style="margin-bottom:16px">${spotlightLabel}</div>
+    const spotLabel = tw==="today"?"Your top pick today":tw==="this afternoon"?"Your afternoon pick":tw==="right now"?"Your pick for right now":"Tonight's spotlight";
+    html += `<div class="container-wide" style="margin-bottom:36px">
+      <div class="label-line" style="margin-bottom:16px">${spotLabel}</div>
       <div class="spotlight">
         ${imgHtml}
         <div class="spotlight-body">
@@ -482,23 +635,27 @@ function renderResults(recs, mood) {
             <span style="font-size:13px;color:var(--muted)">${esc(top.genre||"")}</span>
           </div>
           ${top.tagline?`<p class="display" style="font-size:16px;color:var(--gold-l);font-style:italic;margin-bottom:14px">"${esc(top.tagline)}"</p>`:""}
-          <p style="font-size:14px;color:var(--paper2);line-height:1.7;margin-bottom:20px">${esc(top.explanation)}</p>
-          ${top.tmdbUrl?`<a href="${esc(top.tmdbUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--ink);border-radius:10px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none">View on TMDb →</a>`:""}
+          <p style="font-size:14px;color:var(--paper2);line-height:1.7;margin-bottom:16px">${esc(top.explanation)}</p>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Available on</div>
+          ${renderOTT(top.streaming)}
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
+            ${top.tmdbUrl?`<a href="${esc(top.tmdbUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--ink);border-radius:10px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none">View on TMDb →</a>`:""}
+            <button class="btn-share-card" onclick="shareFilm('${esc(top.title).replace(/'/g,"\'")}')">⬆</button>
+          </div>
         </div>
       </div>
     </div>`;
   }
 
-  if(others.length) {
-    html+=`<div class="container-wide"><div class="label-line" style="margin-bottom:16px">More For Your Mood</div><div class="movie-grid">`;
-    others.forEach((rec,i)=>{
-      const pct=Math.round((rec.matchScore||.75)*100);
-      const icon=GENRE_ICONS[rec.genre]||"🎬";
-      const img=rec.poster
-        ? `<img src="${esc(rec.poster)}" class="movie-poster" alt="${esc(rec.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph><span style=font-size:36px>${icon}</span><span style=font-size:11px;padding:0_8px;text-align:center>${esc(rec.title)}</span></div>'">`
-        : `<div class="poster-ph"><span style="font-size:36px">${icon}</span><span style="font-size:11px;padding:0 8px;text-align:center">${esc(rec.title)}</span></div>`;
-
-      html+=`<div class="card movie-card" style="animation:fadeUp .5s ${i*80}ms both">
+  if (others.length) {
+    html += `<div class="container-wide"><div class="label-line" style="margin-bottom:16px">More For Your Mood</div><div class="movie-grid">`;
+    others.forEach((rec, i) => {
+      const pct = Math.round((rec.matchScore||.75)*100);
+      const icon = GENRE_ICONS[rec.genre]||"🎬";
+      const img = rec.poster
+        ? `<img src="${esc(rec.poster)}" class="movie-poster" alt="${esc(rec.title)}" loading="lazy" onerror="this.outerHTML='<div class=poster-ph><span style=font-size:36px>${icon}</span></div>'">`
+        : `<div class="poster-ph"><span style="font-size:36px">${icon}</span></div>`;
+      html += `<div class="card movie-card" style="animation:fadeUp .5s ${i*80}ms both">
         <div class="movie-poster-wrap">
           ${img}
           <div class="poster-overlay"></div>
@@ -516,55 +673,46 @@ function renderResults(recs, mood) {
             <span>Mood match</span><span style="color:var(--gold)">${pct}%</span>
           </div>
           <div class="match-bar-track"><div class="match-bar-fill" style="width:0" data-pct="${pct}"></div></div>
-          ${rec.tagline?`<p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:6px">"${esc(rec.tagline)}"</p>`:""}
-          <p style="font-size:12px;color:var(--paper2);line-height:1.6">${esc(rec.explanation)}</p>
-          ${rec.tmdbUrl?`<a href="${esc(rec.tmdbUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:10px;font-size:12px;color:var(--gold);text-decoration:none;border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:5px 12px">More Info →</a>`:""}
+          ${rec.tagline?`<p style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:5px">"${esc(rec.tagline)}"</p>`:""}
+          <p style="font-size:12px;color:var(--paper2);line-height:1.6;margin-bottom:8px">${esc(rec.explanation)}</p>
+          ${renderOTT(rec.streaming)}
+          <div style="display:flex;gap:6px;align-items:center">
+            ${rec.tmdbUrl?`<a href="${esc(rec.tmdbUrl)}" target="_blank" rel="noopener noreferrer" style="flex:1;display:block;text-align:center;font-size:12px;color:var(--gold);text-decoration:none;border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:5px 8px">More Info →</a>`:""}
+            <button class="btn-share-card" onclick="shareFilm('${esc(rec.title).replace(/'/g,"\'")}')">⬆</button>
+          </div>
         </div>
       </div>`;
     });
-    html+=`</div></div>`;
+    html += `</div></div>`;
   }
 
   document.getElementById("results-content").innerHTML = html;
-
-  // B-13: animate match bars after DOM insertion
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    document.querySelectorAll(".match-bar-fill[data-pct]").forEach(el=>{
-      el.style.width = el.getAttribute("data-pct")+"%";
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelectorAll(".match-bar-fill[data-pct]").forEach(el => {
+      el.style.width = el.getAttribute("data-pct") + "%";
     });
   }));
 }
 
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 function esc(s) {
-  if(s==null) return "";
+  if (s == null) return "";
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
-function showErr(m){
-  const b=document.getElementById("error-box");
-  b.classList.add("show");
-  const msg=document.createElement("span");
-  msg.textContent=m;
-  const btn=document.createElement("button");
-  btn.textContent="Try again";
-  btn.style.cssText="margin-left:10px;background:none;border:1px solid rgba(255,153,153,.4);border-radius:6px;color:#ff9999;cursor:pointer;font-family:inherit;font-size:12px;padding:3px 10px;transition:border-color .2s";
-  btn.onmouseover=()=>btn.style.borderColor="rgba(255,153,153,.8)";
-  btn.onmouseout=()=>btn.style.borderColor="rgba(255,153,153,.4)";
-  btn.onclick=()=>{ if(selectedIntent) getRecommendations(); };
-  b.innerHTML=""; b.appendChild(msg); b.appendChild(btn);
+function showErr(m) {
+  const b = document.getElementById("error-box"); b.classList.add("show");
+  const msg = document.createElement("span"); msg.textContent = m;
+  const btn = document.createElement("button");
+  btn.textContent = "Try again";
+  btn.style.cssText = "margin-left:10px;background:none;border:1px solid rgba(255,153,153,.4);border-radius:6px;color:#ff9999;cursor:pointer;font-family:inherit;font-size:12px;padding:3px 10px;transition:border-color .2s";
+  btn.onmouseover = () => btn.style.borderColor = "rgba(255,153,153,.8)";
+  btn.onmouseout  = () => btn.style.borderColor = "rgba(255,153,153,.4)";
+  btn.onclick = () => { if (selectedIntent) getRecommendations(); };
+  b.innerHTML = ""; b.appendChild(msg); b.appendChild(btn);
 }
-function hideErr(){document.getElementById("error-box").classList.remove("show")}
-
-// B-09: Handle browser back button
-window.addEventListener("popstate", function(e) {
-  const s = e.state?.screen || "input";
-  if(s === "loading") return; // back during load → go to intent
-  if(abortCtrl) { abortCtrl.abort(); abortCtrl=null; stopLoading(); }
-  goToSilent(s==="loading" ? "intent" : s);
-});
+function hideErr() { document.getElementById("error-box").classList.remove("show"); }
 
 init();
-// Set initial history state so first back press is handled
-history.replaceState({screen:"input"}, "");
 </script>
 </body>
 </html>
