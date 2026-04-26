@@ -128,7 +128,7 @@ textarea:focus{outline:none;border-color:rgba(201,168,76,.55);box-shadow:0 0 0 3
 .ott-badge:hover{border-color:rgba(255,255,255,.2);color:var(--paper);transform:translateY(-1px)}
 .ott-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 .ott-none{font-size:11px;color:var(--muted);font-style:italic;margin:6px 0 10px;display:block}
-.btn-share-card{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid rgba(201,168,76,.18);background:none;cursor:pointer;color:var(--muted);font-size:14px;flex-shrink:0;transition:all .2s}
+.btn-share-card{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid rgba(201,168,76,.18);background:none;cursor:pointer;color:var(--muted);flex-shrink:0;transition:all .2s}.btn-share-card svg{display:block}
 .btn-share-card:hover{border-color:rgba(201,168,76,.5);color:var(--gold);background:rgba(201,168,76,.06)}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink3);border:1px solid rgba(201,168,76,.3);border-radius:50px;padding:10px 22px;font-size:13px;color:var(--gold-l);opacity:0;transition:all .35s cubic-bezier(.4,0,.2,1);pointer-events:none;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -614,7 +614,7 @@ function renderResults(recs, mood) {
     html += `<p class="display" style="font-size:22px;font-weight:300;font-style:italic;color:var(--paper2);max-width:520px;margin:0 auto">"${esc(mood.moodSummary)}"</p>`;
   if (mood?.emotions?.length)
     html += `<div class="mood-tags" style="margin-top:14px">${mood.emotions.slice(0,5).map(e=>`<span class="mood-tag">${esc(e)}</span>`).join("")}</div>`;
-  html += `<div style="margin-top:14px"><button class="share-all-btn" onclick="shareAll()"><span>⬆</span> Share all my picks</button></div>`;
+  html += `<div style="margin-top:14px"><button class="share-all-btn" onclick="shareAll()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share all my picks</button></div>`;
   html += `</div>`;
 
   if (top) {
@@ -640,7 +640,7 @@ function renderResults(recs, mood) {
           ${renderOTT(top.streaming)}
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
             ${top.tmdbUrl?`<a href="${esc(top.tmdbUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:linear-gradient(135deg,var(--gold),var(--gold-d));color:var(--ink);border-radius:10px;padding:10px 20px;font-size:14px;font-weight:600;text-decoration:none">View on TMDb →</a>`:""}
-            <button class="btn-share-card" onclick="shareFilm('${esc(top.title).replace(/'/g,"\'")}')">⬆</button>
+            <button class="btn-share-card" onclick="shareFilm('${esc(top.title).replace(/'/g,"\'")}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
           </div>
         </div>
       </div>
@@ -678,7 +678,7 @@ function renderResults(recs, mood) {
           ${renderOTT(rec.streaming)}
           <div style="display:flex;gap:6px;align-items:center">
             ${rec.tmdbUrl?`<a href="${esc(rec.tmdbUrl)}" target="_blank" rel="noopener noreferrer" style="flex:1;display:block;text-align:center;font-size:12px;color:var(--gold);text-decoration:none;border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:5px 8px">More Info →</a>`:""}
-            <button class="btn-share-card" onclick="shareFilm('${esc(rec.title).replace(/'/g,"\'")}')">⬆</button>
+            <button class="btn-share-card" onclick="shareFilm('${esc(rec.title).replace(/'/g,"\'")}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
           </div>
         </div>
       </div>`;
